@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>点取り虫ゲーム</title>
+    <style>
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 22px); /* 20px + 2px (マージン) */
+            grid-template-rows: repeat(10, 22px);  /* 20px + 2px (マージン) */
+            gap: 0; /* セルのマージンを使用するため、ギャップなし */
+        }
+        .cell {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            margin: 1px; /* セルのマージンを1ピクセルに設定 */
+            cursor: pointer;
+        }
+        .cell-1 {
+            background-color: red;
+            color: white; /* 1は白い文字 */
+        }
+        .cell-2 {
+            background-color: yellow;
+            color: red; /* 2は赤い文字 */
+        }
+        .cell-3 {
+            background-color: green;
+            color: white; /* 3は白い文字 */
+        }
+        .cell-0 {
+            background-color: black;
+            color: black; /* 黒い背景に黒い文字で表示しないようにする */
+        }
+        .player {
+            background-color: white; /* プレイヤーの背景色を白に設定 */
+            color: black; /* プレイヤーの文字色を黒に設定 */
+            font-weight: bold; /* プレイヤーの文字を太字に設定 */
+        }
+        .highlight {
+            border: 2px solid blue; /* ハイライト表示のスタイル */
+        }
+        .scoreboard {
+            margin-bottom: 10px;
+        }
+        .restart-link {
+            display: none;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="scoreboard">点数: <span id="score">0</span> <span id="game-over" style="color: red;"></span></div>
+    <div id="grid-container" class="grid"></div>
+    <div id="restart-container" class="restart-link">
+        <a href="#" id="restart-link">最初からやり直す</a>
+    </div>
+
+    <script>
+        const container = document.getElementById('grid-container');
+        const scoreDisplay = document.getElementById('score');
+        const gameOverDisplay = document.getElementById('game-over');
+        const restartLink = document.getElementById('restart-link');
+        const restartContainer = document.getElementById('restart-container');
+        const grid = [];
+        let playerSet = false;
+        let playerPosition = null;
+        let score = 0;
+
+        function updateScore(points) {
+            score += points;
+            scoreDisplay.textContent = score;
+        }
+
+        function movePlayer(newRow, newCol) {
+            const [currentRow, currentCol] = playerPosition;
+            const currentCell = grid[currentRow][currentCol];
+            const newCell = grid[newRow][newCol];
+
+            // 移動先が黒色のグリッド（値が0）の場合は移動しない
+            let cellValue = parseInt(newCell.getAttribute('data-value')) || 0;
+            if (cellValue === 0) {
+                return;
+            }
+
+            // 点数を加算し、移動先の値を減算
+            updateScore(cellValue);
+            const newValue = cellValue - 1;
+            newCell.setAttribute('data-value', newValue);
+            newCell.textContent = newValue > 0 ? newValue : '';
+            newCell.classList.remove(`cell-${cellValue}`);
+            if (newValue > 0) {
+                newCell.classList.add(`cell-${newValue}`);
+            } else {
+                newCell.classList.add('cell-0');
+            }
+
+            // プレイヤーを新しいセルに移動
+            newCell.textContent = '〇';
+            newCell.classList.add('player');
+            newCell.classList.remove('cell-0');
+
+            // 古いセルを記録された値で更新
+            let previousValue = parseInt(currentCell.getAttribute('data-value'));
+            currentCell.textContent = previousValue > 0 ? previousValue : '';
+            currentCell.classList.remove('player');
+            currentCell.classList.remove('highlight');
+            if (previousValue > 0) {
+                currentCell.classList.add(`cell-${previousValue}`);
+            } else {
+                currentCell.classList.add('cell-0');
+            }
+
+            // プレイヤーの位置を更新
+            playerPosition = [newRow, newCol];
+
+            // 移動可能なグリッドをハイライト
+            highlightAdjacentCells(newRow, newCol);
+
+            // 隣接するセルがすべて移動不可かどうかをチェック
+            checkGameOver(newRow, newCol);
+        }
+
+        function isAdjacent(row1, col1, row2, col2) {
+            const rowDiff = Math.abs(row1 - row2);
+            const colDiff = Math.abs(col1 - col2);
+            return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
+        }
+
+        function highlightAdjacentCells(row, col) {
+            // 全てのハイライトをリセット
+            for (let r = 0; r < 10; r++) {
+                for (let c = 0; c < 10; c++) {
+                    grid[r][c].classList.remove('highlight');
+                }
+            }
+            // 隣接するセルをハイライト
+            const directions = [
+                [row - 1, col], [row + 1, col],
+                [row, col - 1], [row, col + 1]
+            ];
+            directions.forEach(([r, c]) => {
+                if (r >= 0 && r < 10 && c >= 0 && c < 10 && parseInt(grid[r][c].getAttribute('data-value')) > 0) {
+                    grid[r][c].classList.add('highlight');
+                }
+            });
+        }
+
+        function checkGameOver(row, col) {
+            const directions = [
+                [row - 1, col], [row + 1, col],
+                [row, col - 1], [row, col + 1]
+            ];
+            const allBlocked = directions.every(([r, c]) => {
+                return !(r >= 0 && r < 10 && c >= 0 && c < 10 && parseInt(grid[r][c].getAttribute('data-value')) > 0);
+            });
+            if (allBlocked) {
+                gameOverDisplay.textContent = "ゲームオーバー";
+                setTimeout(() => {
+                    restartContainer.style.display = 'block';
+                    restartLink.addEventListener('click', restartGame);
+                }, 10000); // 10秒後にリスタートリンクを表示
+            } else {
+                gameOverDisplay.textContent = "";
+            }
+        }
+
+        function restartGame(event) {
+            event.preventDefault();
+            score = 0;
+            scoreDisplay.textContent = score;
+            gameOverDisplay.textContent = "";
+            restartContainer.style.display = 'none';
+            playerSet = false;
+
+            // グリッドの再初期化
+            for (let row = 0; row < 10; row++) {
+                for (let col = 0; col < 10; col++) {
+                    const cell = grid[row][col];
+                    const randomNumber = Math.floor(Math.random() * 3) + 1;
+                    cell.textContent = randomNumber;
+                    cell.classList.remove('player', 'highlight');
+                    cell.setAttribute('data-original-value', randomNumber);
+                    cell.setAttribute('data-value', randomNumber);
+                    cell.classList.remove('cell-1', 'cell-2', 'cell-3', 'cell-0');
+                    cell.classList.add(`cell-${randomNumber}`);
+
+                    // プレイヤーを再設定
+                    if (randomNumber === 3 && !playerSet) {
+                        cell.textContent = '〇';
+                        cell.classList.add('player');
+                        playerPosition = [row, col];
+                        playerSet = true;
+                    }
+
+                    // セルクリック時のイベントリスナーを再設定
+                    const cellClickHandler = () => {
+                        if (playerPosition && isAdjacent(playerPosition[0], playerPosition[1], row, col)) {
+                            movePlayer(row, col);
+                        }
+                    };
+                    cell.addEventListener('click', cellClickHandler);
+                    cell.addEventListener('touchstart', cellClickHandler);
+                }
+            }
+
+            // プレイヤーが設定されていない場合、強制的に設定
+            if (!playerSet) {
+                let placed = false;
+                while (!placed) {
+                    const randRow = Math.floor(Math.random() * 10);
+                    const randCol = Math.floor(Math.random() * 10);
+                    if (grid[randRow][randCol].classList.contains('cell-3')) {
+                        grid[randRow][randCol].textContent = '〇';
+                        grid[randRow][randCol].classList.add('player');
+                        playerPosition = [randRow, randCol];
+                        placed = true;
+                    }
+                }
+            }
+
+            // 初期状態で隣接するセルをハイライト
+            if (playerPosition) {
+                highlightAdjacentCells(playerPosition[0], playerPosition[1]);
+            }
+        }
+
+        function createGrid() {
+            for (let row = 0; row < 10; row++) {
+                grid[row] = [];
+                for (let col = 0; col < 10; col++) {
+                    const cell = document.createElement('div');
+                    const randomNumber = Math.floor(Math.random() * 3) + 1;
+                    cell.classList.add('cell', `cell-${randomNumber}`);
+                    cell.setAttribute('data-original-value', randomNumber);
+                    cell.setAttribute('data-value', randomNumber);
+                    cell.textContent = randomNumber;
+                    grid[row][col] = cell;
+                    container.appendChild(cell);
+
+                    // プレイヤーを設定
+                    if (randomNumber === 3 && !playerSet) {
+                        cell.textContent = '〇';
+                        cell.classList.add('player');
+                        playerPosition = [row, col];
+                        playerSet = true;
+                    }
+
+                    // セルクリック時のイベントリスナー
+                    const cellClickHandler = () => {
+                        if (playerPosition && isAdjacent(playerPosition[0], playerPosition[1], row, col)) {
+                            movePlayer(row, col);
+                        }
+                    };
+                    cell.addEventListener('click', cellClickHandler);
+                    cell.addEventListener('touchstart', cellClickHandler);
+                }
+            }
+
+            // プレイヤーが設定されていない場合、強制的に設定
+            if (!playerSet) {
+                let placed = false;
+                while (!placed) {
+                    const randRow = Math.floor(Math.random() * 10);
+                    const randCol = Math.floor(Math.random() * 10);
+                    if (grid[randRow][randCol].classList.contains('cell-3')) {
+                        grid[randRow][randCol].textContent = '〇';
+                        grid[randRow][randCol].classList.add('player');
+                        playerPosition = [randRow, randCol];
+                        placed = true;
+                    }
+                }
+            }
+
+            // 初期状態で隣接するセルをハイライト
+            if (playerPosition) {
+                highlightAdjacentCells(playerPosition[0], playerPosition[1]);
+            }
+        }
+
+        createGrid();
+    </script>
+</body>
+</html>
