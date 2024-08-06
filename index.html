@@ -62,6 +62,12 @@
     <div id="restart-container" class="restart-link">
         <a href="#" id="restart-link">最初からやり直す</a>
     </div>
+    <div class="instructions">
+        <h2>遊び方</h2>
+        <p>プレイヤー（〇）は隣接するセルに移動できます。セルの数字を取得すると点数が加算され、そのセルの値は1減少します。セルの値が0になると黒くなり、移動できなくなります。</p>
+        <p>隣接する全てのセルが黒くなり移動できなくなったらゲームオーバーです。</p>
+        <p>ゲームオーバーになったら10秒後に「最初からやり直す」リンクが表示されます。クリックするとゲームがリセットされます。</p>
+    </div>
 
     <script>
         const container = document.getElementById('grid-container');
