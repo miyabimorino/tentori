@@ -10,7 +10,6 @@
             grid-template-columns: repeat(10, 22px); /* 20px + 2px (マージン) */
             grid-template-rows: repeat(10, 22px);  /* 20px + 2px (マージン) */
             gap: 0; /* セルのマージンを使用するため、ギャップなし */
-            user-select: none; /* テキスト選択を無効にする */
         }
         .cell {
             width: 20px;
@@ -22,7 +21,6 @@
             font-size: 14px;
             margin: 1px; /* セルのマージンを1ピクセルに設定 */
             cursor: pointer;
-            user-select: none; /* テキスト選択を無効にする */
         }
         .cell-1 {
             background-color: red;
@@ -50,7 +48,6 @@
         }
         .scoreboard {
             margin-bottom: 10px;
-            user-select: none; /* テキスト選択を無効にする */
         }
         .restart-link {
             display: none;
@@ -139,7 +136,7 @@
 
         function isAdjacent(row1, col1, row2, col2) {
             const rowDiff = Math.abs(row1 - row2);
-            const colDiff = Math.abs(row1 - col2);
+            const colDiff = Math.abs(col1 - col2);
             return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
         }
 
@@ -200,6 +197,23 @@
                     cell.setAttribute('data-value', randomNumber);
                     cell.classList.remove('cell-1', 'cell-2', 'cell-3', 'cell-0');
                     cell.classList.add(`cell-${randomNumber}`);
+
+                    // プレイヤーを再設定
+                    if (randomNumber === 3 && !playerSet) {
+                        cell.textContent = '〇';
+                        cell.classList.add('player');
+                        playerPosition = [row, col];
+                        playerSet = true;
+                    }
+
+                    // セルクリック時のイベントリスナーを再設定
+                    const cellClickHandler = () => {
+                        if (playerPosition && isAdjacent(playerPosition[0], playerPosition[1], row, col)) {
+                            movePlayer(row, col);
+                        }
+                    };
+                    cell.addEventListener('click', cellClickHandler);
+                    cell.addEventListener('touchstart', cellClickHandler);
                 }
             }
 
